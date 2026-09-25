@@ -1,0 +1,15 @@
+{
+  "note": "Hand-written answers for the synthetic docs in examples/docs, used by the tests and by examples/run.mjs. They were not produced by TypeSafe; they show the report format.",
+  "model": "jev-1.13.0",
+  "answers": {
+    "backups.md#1": { "standalone": 0.96, "outside": 0.05, "fix": { "keep": 0.95, "merge_with_next": 0.03, "split": 0.02 } },
+    "backups.md#2": { "standalone": 0.46, "outside": 0.38, "fix": { "keep": 0.41, "merge_with_previous": 0.55, "merge_with_next": 0.02, "split": 0.02 } },
+    "backups.md#3": { "standalone": 0.14, "outside": 0.93, "fix": { "keep": 0.05, "merge_with_previous": 0.91, "merge_with_next": 0.02, "split": 0.02 } },
+    "backups.md#4": { "standalone": 0.35, "outside": 0.95, "fix": { "keep": 0.03, "merge_with_previous": 0.04, "merge_with_next": 0.92, "split": 0.01 } },
+    "backups.md#5": { "standalone": 0.84, "outside": 0.12, "fix": { "keep": 0.08, "merge_with_previous": 0.02, "split": 0.9 } },
+    "restore.md#1": { "standalone": 0.97, "outside": 0.04, "fix": { "keep": 0.96, "merge_with_next": 0.03, "split": 0.01 } },
+    "restore.md#2": { "standalone": 0.9, "outside": 0.07, "fix": { "keep": 0.93, "merge_with_previous": 0.04, "merge_with_next": 0.02, "split": 0.01 } },
+    "restore.md#3": { "standalone": 0.11, "outside": 0.94, "fix": { "keep": 0.04, "merge_with_previous": 0.93, "merge_with_next": 0.02, "split": 0.01 } },
+    "restore.md#4": { "standalone": 0.88, "outside": 0.06, "fix": { "keep": 0.92, "merge_with_previous": 0.06, "split": 0.02 } }
+  }
+}

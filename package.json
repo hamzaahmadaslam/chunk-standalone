@@ -1,0 +1,38 @@
+{
+  "name": "chunk-standalone",
+  "version": "1.0.0",
+  "description": "Finds RAG chunks that cannot be understood on their own and suggests keep, merge or split, using TypeSafe's Jev model.",
+  "type": "module",
+  "bin": {
+    "chunk-standalone": "bin/chunk-standalone.mjs"
+  },
+  "files": [
+    "bin",
+    "src"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test"
+  },
+  "keywords": [
+    "rag",
+    "chunking",
+    "retrieval",
+    "markdown",
+    "lint",
+    "typesafe",
+    "jev"
+  ],
+  "author": "Hamza Ahmad Aslam (https://hamzaahmadaslam.com)",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hamzaahmadaslam/chunk-standalone.git"
+  },
+  "homepage": "https://github.com/hamzaahmadaslam/chunk-standalone#readme",
+  "bugs": {
+    "url": "https://github.com/hamzaahmadaslam/chunk-standalone/issues"
+  }
+}

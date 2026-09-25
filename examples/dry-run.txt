@@ -1,0 +1,17 @@
+Dry run: nothing was sent to TypeSafe.
+
+9 chunks in 2 files, split by heading
+  backups.md  5 chunks, 13 to 70 tokens each
+  restore.md  4 chunks, 17 to 48 tokens each
+
+2 requests to jev-latest, about 3,695 input tokens ($0.0002 at $0.042 per million)
+
+Each chunk gets three questions. For backups.md #2, which is `chunks[1]` in its request:
+  c1_standalone (noul)
+    `chunks` lists consecutive pieces of one document, in reading order. A search system will return `chunks[1]` alone. Can a reader understand `chunks[1]` without the pieces before it?
+  c1_outside (noul)
+    Does `chunks[1]` refer to something that is not inside `chunks[1]`, with words such as "this", "above", "below", "the following", "as mentioned" or "the previous step"?
+  c1_fix (choice: keep, merge_with_previous, merge_with_next, split)
+    `chunks` lists consecutive pieces of one document, in reading order. A search system will return `chunks[1]` alone. What should be done with `chunks[1]` so that it reads well on its own?
+
+Run with --dry-run --json to see every request body.

@@ -1,0 +1,26 @@
+chunk-standalone: 9 chunks in 2 files, split by heading
+Model jev-1.13.0, 2 requests, 3,695 input tokens (about $0.0002), threshold 0.8
+
+ok 4   fix 4   review 1
+
+backups.md (5 chunks: fix 3, review 1)
+  #2 line 10  review (unclear if it stands alone, unclear if it points outside itself, unclear which fix)
+      standalone 0.46 | outside reference 0.38 | fix answer: merge with previous 0.55, keep 0.41 (confidence 0.40)
+      "## Schedule It starts at 02:00 server time and usually takes a few..."
+  #3 line 14  fix: merge with previous (needs earlier text, points outside itself)
+      standalone 0.14 | outside reference 0.93 | fix answer: merge with previous 0.91, keep 0.05 (confidence 0.88)
+      "## Keeping copies As shown above, a copy is made every night. Copies..."
+  #4 line 19  fix: merge with next (points outside itself)
+      standalone 0.35 | outside reference 0.95 | fix answer: merge with next 0.92 (confidence 0.89)
+      "## Settings The following settings control the job."
+  #5 line 23  fix: split (covers more than one topic)
+      standalone 0.84 | outside reference 0.12 | fix answer: split 0.90, keep 0.08 (confidence 0.85)
+      "## Settings reference `backup.bucket` is the storage bucket that..."
+
+restore.md (4 chunks: fix 1)
+  #3 line 16  fix: merge with previous (needs earlier text, points outside itself)
+      standalone 0.11 | outside reference 0.94 | fix answer: merge with previous 0.93 (confidence 0.91)
+      "## If it fails Repeat step 2 with maintenance mode switched on. If the..."
+
+fix: confident answers (threshold 0.8) found a problem and agree on the fix.
+review: the answers were not confident enough or disagreed. Read these chunks yourself.

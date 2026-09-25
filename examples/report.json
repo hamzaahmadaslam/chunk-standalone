@@ -1,0 +1,216 @@
+{
+  "tool": "chunk-standalone",
+  "version": "1.0.0",
+  "input": "files",
+  "by": "heading",
+  "threshold": 0.8,
+  "batch": 8,
+  "model": "jev-1.13.0",
+  "summary": {
+    "files": 2,
+    "chunks": 9,
+    "ok": 4,
+    "fix": 4,
+    "review": 1,
+    "skipped": 0
+  },
+  "usage": {
+    "requests": 2,
+    "input_tokens": 3695,
+    "output_tokens": 0,
+    "estimated_cost_usd": 0.000155
+  },
+  "files": [
+    {
+      "source": "backups.md",
+      "chunks": [
+        {
+          "id": "backups.md#1",
+          "number": 1,
+          "line": 5,
+          "estimated_tokens": 43,
+          "verdict": "ok",
+          "fix": "keep",
+          "reasons": [],
+          "standalone": 0.96,
+          "outside_reference": 0.05,
+          "fix_probabilities": {
+            "keep": 0.95,
+            "merge_with_next": 0.03,
+            "split": 0.02
+          },
+          "fix_confidence": 0.92,
+          "preview": "# Backups The backup job copies the site database and the uploads folder..."
+        },
+        {
+          "id": "backups.md#2",
+          "number": 2,
+          "line": 10,
+          "estimated_tokens": 29,
+          "verdict": "review",
+          "fix": "merge_with_previous",
+          "reasons": [
+            "unsure_standalone",
+            "unsure_outside",
+            "unsure_fix"
+          ],
+          "standalone": 0.46,
+          "outside_reference": 0.38,
+          "fix_probabilities": {
+            "keep": 0.41,
+            "merge_with_previous": 0.55,
+            "merge_with_next": 0.02,
+            "split": 0.02
+          },
+          "fix_confidence": 0.4,
+          "preview": "## Schedule It starts at 02:00 server time and usually takes a few..."
+        },
+        {
+          "id": "backups.md#3",
+          "number": 3,
+          "line": 14,
+          "estimated_tokens": 45,
+          "verdict": "fix",
+          "fix": "merge_with_previous",
+          "reasons": [
+            "needs_earlier_text",
+            "points_outside"
+          ],
+          "standalone": 0.14,
+          "outside_reference": 0.93,
+          "fix_probabilities": {
+            "keep": 0.05,
+            "merge_with_previous": 0.91,
+            "merge_with_next": 0.02,
+            "split": 0.02
+          },
+          "fix_confidence": 0.88,
+          "preview": "## Keeping copies As shown above, a copy is made every night. Copies..."
+        },
+        {
+          "id": "backups.md#4",
+          "number": 4,
+          "line": 19,
+          "estimated_tokens": 13,
+          "verdict": "fix",
+          "fix": "merge_with_next",
+          "reasons": [
+            "points_outside"
+          ],
+          "standalone": 0.35,
+          "outside_reference": 0.95,
+          "fix_probabilities": {
+            "keep": 0.03,
+            "merge_with_previous": 0.04,
+            "merge_with_next": 0.92,
+            "split": 0.01
+          },
+          "fix_confidence": 0.89,
+          "preview": "## Settings The following settings control the job."
+        },
+        {
+          "id": "backups.md#5",
+          "number": 5,
+          "line": 23,
+          "estimated_tokens": 70,
+          "verdict": "fix",
+          "fix": "split",
+          "reasons": [
+            "mixes_topics"
+          ],
+          "standalone": 0.84,
+          "outside_reference": 0.12,
+          "fix_probabilities": {
+            "keep": 0.08,
+            "merge_with_previous": 0.02,
+            "split": 0.9
+          },
+          "fix_confidence": 0.85,
+          "preview": "## Settings reference `backup.bucket` is the storage bucket that..."
+        }
+      ]
+    },
+    {
+      "source": "restore.md",
+      "chunks": [
+        {
+          "id": "restore.md#1",
+          "number": 1,
+          "line": 5,
+          "estimated_tokens": 47,
+          "verdict": "ok",
+          "fix": "keep",
+          "reasons": [],
+          "standalone": 0.97,
+          "outside_reference": 0.04,
+          "fix_probabilities": {
+            "keep": 0.96,
+            "merge_with_next": 0.03,
+            "split": 0.01
+          },
+          "fix_confidence": 0.94,
+          "preview": "# Restoring a backup A restore replaces the current database and uploads..."
+        },
+        {
+          "id": "restore.md#2",
+          "number": 2,
+          "line": 10,
+          "estimated_tokens": 48,
+          "verdict": "ok",
+          "fix": "keep",
+          "reasons": [],
+          "standalone": 0.9,
+          "outside_reference": 0.07,
+          "fix_probabilities": {
+            "keep": 0.93,
+            "merge_with_previous": 0.04,
+            "merge_with_next": 0.02,
+            "split": 0.01
+          },
+          "fix_confidence": 0.91,
+          "preview": "## Steps 1. Open Tools, then Backups, and pick the archive by its date...."
+        },
+        {
+          "id": "restore.md#3",
+          "number": 3,
+          "line": 16,
+          "estimated_tokens": 41,
+          "verdict": "fix",
+          "fix": "merge_with_previous",
+          "reasons": [
+            "needs_earlier_text",
+            "points_outside"
+          ],
+          "standalone": 0.11,
+          "outside_reference": 0.94,
+          "fix_probabilities": {
+            "keep": 0.04,
+            "merge_with_previous": 0.93,
+            "merge_with_next": 0.02,
+            "split": 0.01
+          },
+          "fix_confidence": 0.91,
+          "preview": "## If it fails Repeat step 2 with maintenance mode switched on. If the..."
+        },
+        {
+          "id": "restore.md#4",
+          "number": 4,
+          "line": 21,
+          "estimated_tokens": 17,
+          "verdict": "ok",
+          "fix": "keep",
+          "reasons": [],
+          "standalone": 0.88,
+          "outside_reference": 0.06,
+          "fix_probabilities": {
+            "keep": 0.92,
+            "merge_with_previous": 0.06,
+            "split": 0.02
+          },
+          "fix_confidence": 0.88,
+          "preview": "## Time needed Restoring a 2 GB archive takes about ten minutes."
+        }
+      ]
+    }
+  ]
+}
