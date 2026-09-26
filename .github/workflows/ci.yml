@@ -11,10 +11,14 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        # package.json promises Node.js 20 or later, so test the oldest supported version as well as newer ones.
+        node-version: [20, 22, 24]
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: ${{ matrix.node-version }}
       - run: npm ci --ignore-scripts
       - run: npm test
