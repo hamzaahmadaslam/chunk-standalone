@@ -13,8 +13,6 @@ export const STATE_BUDGET = 16_000;
 export const CONTEXT_CHARS = 1_500;
 /** Chunks estimated above this many tokens are reported as too large and not sent. */
 export const MAX_CHUNK_TOKENS = 14_000;
-/** US dollars per million input tokens for jev-1.13. Output tokens are free. */
-export const PRICE_PER_MILLION = 0.042;
 const CONCURRENCY = 4;
 
 const ORDER = "`chunks` lists consecutive pieces of one document, in reading order.";
@@ -138,11 +136,11 @@ function buildRequest(doc, asked, numbers, model) {
   return { source: doc.source, targets, body: { model, state: { chunks: items }, questions } };
 }
 
-/** Estimated input tokens and cost of a plan, for --dry-run. */
+/** Estimated input tokens of a plan, per request and in total, for --dry-run. */
 export function estimatePlan(plan) {
   const perRequest = plan.requests.map((request) => estimateTokens(JSON.stringify(request.body)));
   const tokens = perRequest.reduce((sum, n) => sum + n, 0);
-  return { perRequest, tokens, cost: (tokens * PRICE_PER_MILLION) / 1e6 };
+  return { perRequest, tokens };
 }
 
 const isProbability = (value) => typeof value === "number" && value >= 0 && value <= 1;

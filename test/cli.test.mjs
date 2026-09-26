@@ -1,11 +1,13 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { DOCS, exampleFetch } from "../examples/run.mjs";
+import * as checkModule from "../src/check.mjs";
 import { main, USAGE } from "../src/cli.mjs";
 import { fixtureFetch } from "../src/jev.mjs";
+import * as reportModule from "../src/report.mjs";
 
 globalThis.fetch = () => {
   throw new Error("Tests must not use the network.");
@@ -49,6 +51,34 @@ test("the example in examples/ reproduces report.txt, report.json and dry-run.tx
   for (const output of [report, json, dry]) assert.ok(!(output.stdout + output.stderr).includes(KEY), "the key is never printed");
 });
 
+test("no price anywhere: every output gives token counts only, and the code holds no rate or dollar amount", async () => {
+  const env = { TYPESAFE_API_KEY: KEY };
+  const [text, json, dry, dryJson] = [
+    await run([DOCS], { env, fetchImpl: exampleFetch().fetchImpl }),
+    await run([DOCS, "--json"], { env, fetchImpl: exampleFetch().fetchImpl }),
+    await run([DOCS, "--dry-run"]),
+    await run([DOCS, "--dry-run", "--json"]),
+  ].map((output) => output.stdout);
+  assert.ok(text.includes("\nModel jev-1.13.0, 2 requests, 3,695 input tokens, threshold 0.8\n"));
+  assert.ok(dry.includes("\n2 requests to jev-latest, about 3,695 input tokens\n"));
+  for (const output of [text, json, dry, dryJson]) {
+    assert.ok(!output.includes("$"), "no dollar sign");
+    assert.doesNotMatch(output, /cost|price|usd|per million/i);
+  }
+  assert.deepEqual(Object.keys(JSON.parse(json).usage), ["requests", "input_tokens", "output_tokens"]);
+  assert.equal(JSON.parse(dryJson).estimated_input_tokens, 3695);
+  const readme = readFileSync(new URL("../README.md", import.meta.url), "utf8");
+  assert.doesNotMatch(readme, /\$\s?\d|per million|^## Cost/im, "the README states no price");
+
+  for (const module of [checkModule, reportModule]) {
+    assert.deepEqual(Object.keys(module).filter((name) => /price|cost|money/i.test(name)), []);
+  }
+  for (const name of readdirSync(new URL("../src/", import.meta.url))) {
+    const source = readFileSync(new URL(`../src/${name}`, import.meta.url), "utf8");
+    assert.doesNotMatch(source, /price|per million|dollar|_usd\b/i, `src/${name}`);
+  }
+});
+
 test("--dry-run prints the questions and a token estimate without a key and without a request", async () => {
   const { fetchImpl, calls } = fixtureFetch(() => 500);
   const text = await run([DOCS, "--dry-run"], { fetchImpl });
@@ -89,7 +119,7 @@ test("exit code 0 and a short report when every chunk is ok", async () => {
   }));
   const { code, stdout } = await run([DOCS, "--threshold", "0.9"], { env: { TYPESAFE_API_KEY: KEY }, fetchImpl: allOk.fetchImpl });
   assert.equal(code, 0);
-  assert.match(stdout, /Model jev-1\.13\.0, 2 requests, 3,000 input tokens \(about \$0\.0001\), threshold 0\.9/);
+  assert.match(stdout, /Model jev-1\.13\.0, 2 requests, 3,000 input tokens, threshold 0\.9/);
   assert.match(stdout, /ok 9 {3}fix 0 {3}review 0/);
   assert.match(stdout, /No chunks to fix or review\./);
 });

@@ -17,8 +17,7 @@
   "usage": {
     "requests": 2,
     "input_tokens": 3695,
-    "output_tokens": 0,
-    "estimated_cost_usd": 0.000155
+    "output_tokens": 0
   },
   "files": [
     {

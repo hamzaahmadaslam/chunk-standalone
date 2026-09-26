@@ -1,7 +1,7 @@
 // Formats results for people (the report, the dry run) and for programs (JSON). Every word printed comes from the
 // input files or from the fixed text in this file; Jev returns only probabilities.
 import { describeBy, estimateTokens } from "./chunk.mjs";
-import { estimatePlan, PRICE_PER_MILLION } from "./check.mjs";
+import { estimatePlan } from "./check.mjs";
 
 const FIX_NAMES = {
   keep: "keep",
@@ -29,14 +29,6 @@ const LIST_LIMIT = 20;
 const count = (n) => n.toLocaleString("en-US");
 const plural = (n, word) => `${count(n)} ${word}${n === 1 ? "" : "s"}`;
 const p2 = (value) => value.toFixed(2);
-const round6 = (value) => Math.round(value * 1e6) / 1e6;
-
-/** Dollars, with enough decimals to show a cost that is usually a fraction of a cent. */
-export function money(cost) {
-  if (cost === 0) return "$0";
-  if (cost < 0.0001) return "under $0.0001";
-  return cost < 0.01 ? `$${cost.toFixed(4)}` : `$${cost.toFixed(2)}`;
-}
 
 /** The start of a chunk on one line, for finding it in the file. */
 export function preview(text, max = 76) {
@@ -88,11 +80,9 @@ function formatEntry(entry) {
 /** The human-readable report: counts, then the chunks to fix or review, grouped by file, with probabilities. */
 export function formatReport(result, meta) {
   const { summary, usage, threshold } = result;
-  const cost = (usage.input_tokens * PRICE_PER_MILLION) / 1e6;
   const lines = [
     `chunk-standalone: ${plural(summary.chunks, "chunk")} in ${scope(meta, summary.files)}`,
-    `Model ${result.model}, ${plural(usage.requests, "request")}, ${count(usage.input_tokens)} input tokens ` +
-      `(about ${money(cost)}), threshold ${threshold}`,
+    `Model ${result.model}, ${plural(usage.requests, "request")}, ${count(usage.input_tokens)} input tokens, threshold ${threshold}`,
     "",
     `ok ${summary.ok}   fix ${summary.fix}   review ${summary.review}${summary.skipped ? `   skipped ${summary.skipped}` : ""}`,
   ];
@@ -123,7 +113,6 @@ export function formatReport(result, meta) {
 
 /** The report as JSON: every chunk, its verdict, and the raw probabilities. */
 export function toJson(result, meta) {
-  const cost = (result.usage.input_tokens * PRICE_PER_MILLION) / 1e6;
   return {
     tool: "chunk-standalone",
     version: meta.version,
@@ -133,7 +122,7 @@ export function toJson(result, meta) {
     batch: meta.batch,
     model: result.model,
     summary: result.summary,
-    usage: { ...result.usage, estimated_cost_usd: round6(cost) },
+    usage: result.usage,
     files: result.files.map((file) => ({
       source: file.source,
       chunks: file.chunks.map(({ chunk, verdict, fix, reasons, answer }) => ({
@@ -183,11 +172,7 @@ export function formatDryRun(plan, meta) {
   for (const { source, chunk, reason } of plan.skipped) {
     lines.push(`Skipped ${source} ${chunk.label} line ${chunk.line}: ${reasonText({ chunk, reasons: [reason] })}`);
   }
-  lines.push(
-    "",
-    `${plural(plan.requests.length, "request")} to ${meta.model}, about ${count(estimate.tokens)} input tokens ` +
-      `(${money(estimate.cost)} at $${PRICE_PER_MILLION} per million)`,
-  );
+  lines.push("", `${plural(plan.requests.length, "request")} to ${meta.model}, about ${count(estimate.tokens)} input tokens`);
   const example = exampleTarget(plan);
   if (example) {
     const { request, target } = example;
@@ -221,7 +206,6 @@ export function dryRunJson(plan, meta) {
       skipped: plan.skipped.length,
     },
     estimated_input_tokens: estimate.tokens,
-    estimated_cost_usd: round6(estimate.cost),
     skipped: plan.skipped.map(({ source, chunk, reason }) => ({
       source,
       id: chunk.id,

@@ -4,7 +4,7 @@ Dry run: nothing was sent to TypeSafe.
   backups.md  5 chunks, 13 to 70 tokens each
   restore.md  4 chunks, 17 to 48 tokens each
 
-2 requests to jev-latest, about 3,695 input tokens ($0.0002 at $0.042 per million)
+2 requests to jev-latest, about 3,695 input tokens
 
 Each chunk gets three questions. For backups.md #2, which is `chunks[1]` in its request:
   c1_standalone (noul)

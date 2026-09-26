@@ -1,5 +1,5 @@
 chunk-standalone: 9 chunks in 2 files, split by heading
-Model jev-1.13.0, 2 requests, 3,695 input tokens (about $0.0002), threshold 0.8
+Model jev-1.13.0, 2 requests, 3,695 input tokens, threshold 0.8
 
 ok 4   fix 4   review 1
 

@@ -117,7 +117,7 @@ report without a key or a network call.
 
 ```text
 chunk-standalone: 9 chunks in 2 files, split by heading
-Model jev-1.13.0, 2 requests, 3,695 input tokens (about $0.0002), threshold 0.8
+Model jev-1.13.0, 2 requests, 3,695 input tokens, threshold 0.8
 
 ok 4   fix 4   review 1
 
@@ -179,19 +179,20 @@ disk and makes no other network requests, for telemetry, updates or anything els
 - The tool reports and never edits files. Treat fix verdicts as suggestions, read the review list yourself, and
   check a sample of verdicts on your own documents before you rely on a threshold.
 
-## Cost
+## Token use
 
-TypeSafe charges $0.042 per million input tokens for jev-1.13; output tokens are free. The questions add about 375
-tokens per chunk, so for short chunks most of the cost is the questions. By the tool's own estimate (four
-characters per token):
+The input tokens of a request are its state (the chunks and the text on either side of them) and its questions. The
+questions add about 375 tokens per chunk, so for short chunks most of the input is the questions. By the tool's own
+estimate (four characters per token):
 
-| Run                                                         | Requests | Input tokens   | Cost          |
-| ----------------------------------------------------------- | -------- | -------------- | ------------- |
-| The example: 9 chunks in 2 files                            | 2        | about 3,700    | under $0.001  |
-| 1,000 chunks of about 200 tokens (100 files of 10 sections) | 200      | about 630,000  | about $0.03   |
-| The same files with `--batch 1`                             | 1,000    | about 980,000  | about $0.04   |
+| Run                                                         | Requests | Input tokens   |
+| ----------------------------------------------------------- | -------- | -------------- |
+| The example: 9 chunks in 2 files                            | 2        | about 3,700    |
+| 1,000 chunks of about 200 tokens (100 files of 10 sections) | 200      | about 630,000  |
+| The same files with `--batch 1`                             | 1,000    | about 980,000  |
 
-`--dry-run` prints the estimate for your own files before you spend anything.
+`--dry-run` prints the estimate for your own files before anything is sent. After a run, the report prints the input
+tokens TypeSafe counted.
 
 ## License
 
