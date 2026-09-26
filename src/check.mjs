@@ -7,6 +7,7 @@ export const DEFAULT_THRESHOLD = 0.8;
 export const DEFAULT_BATCH = 8;
 export const MAX_BATCH = 50;
 export const DEFAULT_TIMEOUT_SECONDS = 10;
+export const MAX_TIMEOUT_SECONDS = 600;
 /** Estimated tokens of state per request. TypeSafe allows 32k for the state plus the longest question. */
 export const STATE_BUDGET = 16_000;
 /** How much of a neighbour outside the batch goes into the state: the end of the one before, the start of the one after. */
@@ -145,13 +146,16 @@ export function estimatePlan(plan) {
 
 const isProbability = (value) => typeof value === "number" && value >= 0 && value <= 1;
 
-/** The three answers for one chunk from a response, or null when any is missing or malformed. */
-export function readAnswer(answers, key) {
+/**
+ * The three answers for one chunk from a response, or null when any is missing or malformed. `fixes` lists the
+ * options the fix question offered; a choice that is not one of them counts as malformed.
+ */
+export function readAnswer(answers, key, fixes) {
   const standalone = answers?.[`${key}_standalone`]?.noul;
   const outside = answers?.[`${key}_outside`]?.noul;
   const fix = answers?.[`${key}_fix`];
   if (!isProbability(standalone) || !isProbability(outside)) return null;
-  if (typeof fix?.choice !== "string" || !isProbability(fix.confidence)) return null;
+  if (!fixes.includes(fix?.choice) || !isProbability(fix.confidence)) return null;
   if (!fix.probabilities || typeof fix.probabilities !== "object") return null;
   return { standalone, outside, fix: { choice: fix.choice, confidence: fix.confidence, probabilities: fix.probabilities } };
 }
@@ -193,16 +197,21 @@ export function decide(answer, threshold = DEFAULT_THRESHOLD) {
   return { verdict: "review", fix: fix.choice, reasons: reasons.length ? reasons : ["answers_disagree"] };
 }
 
-/** Runs `worker` over `items` with at most `limit` at a time; stops starting new work after the first failure. */
-async function mapLimit(items, limit, worker) {
+/**
+ * Runs `worker` over `items` with at most `limit` at a time and calls `onDone(done, total)` as each one finishes.
+ * After the first failure it starts no new work and reports no more progress.
+ */
+async function mapLimit(items, limit, worker, onDone) {
   const results = new Array(items.length);
   let next = 0;
+  let done = 0;
   let failed = false;
   const lanes = Array.from({ length: Math.min(limit, items.length) }, async () => {
     while (!failed && next < items.length) {
       const index = next++;
       try {
         results[index] = await worker(items[index]);
+        if (!failed) onDone?.(++done, items.length);
       } catch (error) {
         failed = true;
         throw error;
@@ -216,7 +225,8 @@ async function mapLimit(items, limit, worker) {
 /**
  * Sends every request in the plan (four at a time) and returns the verdicts grouped by document:
  * { model, threshold, files: [{ source, chunks: [{ chunk, verdict, fix, reasons, answer }] }], summary, usage }.
- * Any TypeSafe error (missing key, 401, 422, 429 or 529 after retries, timeout) stops the run with a JevError.
+ * `onProgress(done, total)` is called as each request finishes, and never after the run has stopped. Any TypeSafe
+ * error (missing key, 401, 422, or a timeout, network error, 429 or 529 after retries) stops the run with a JevError.
  */
 export async function runPlan(plan, options = {}) {
   const {
@@ -228,23 +238,25 @@ export async function runPlan(plan, options = {}) {
     fetchImpl,
     onProgress,
   } = options;
-  let done = 0;
-  const responses = await mapLimit(plan.requests, CONCURRENCY, async (request) => {
-    const response = await askJev(request.body.state, request.body.questions, {
-      apiKey,
-      model,
-      timeoutMs: timeoutSeconds * 1000,
-      retries,
-      fetchImpl,
-    });
-    onProgress?.(++done, plan.requests.length);
-    return response;
-  });
+  const responses = await mapLimit(
+    plan.requests,
+    CONCURRENCY,
+    (request) =>
+      askJev(request.body.state, request.body.questions, {
+        apiKey,
+        model,
+        timeoutMs: timeoutSeconds * 1000,
+        retries,
+        fetchImpl,
+      }),
+    onProgress,
+  );
 
   const outcomes = new Map();
   plan.requests.forEach((request, i) => {
     for (const { key, chunk } of request.targets) {
-      const answer = readAnswer(responses[i].answers, key);
+      const fixes = Object.keys(request.body.questions[`${key}_fix`].criteria);
+      const answer = readAnswer(responses[i].answers, key, fixes);
       outcomes.set(
         chunk,
         answer ? { answer, ...decide(answer, threshold) } : { answer: null, verdict: "review", fix: null, reasons: ["no_answer"] },

@@ -46,7 +46,8 @@ export function blankFrontMatter(text) {
   return text;
 }
 
-const FENCE_OPEN = /^ {0,3}(`{3,}|~{3,})/;
+// A backtick fence has no backtick after it on its line (CommonMark), so "```a``` b" is inline code, not a fence.
+const FENCE_OPEN = /^ {0,3}(`{3,}(?=[^`]*$)|~{3,})/;
 const FENCE_CLOSE = /^ {0,3}(`{3,}|~{3,})\s*$/;
 const HEADING = /^ {0,3}#{1,6}(?:[ \t]|$)/;
 

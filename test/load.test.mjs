@@ -24,13 +24,14 @@ function folder(t, files) {
   return root;
 }
 
-test("a folder: Markdown and text files below it, in path order, without dot folders or node_modules", (t) => {
+test("a folder: Markdown and text files below it, in path order, without dot files, dot folders or node_modules", (t) => {
   const root = folder(t, {
     "b.md": "---\ntitle: B\n---\n# B\nText of B.",
     "a/guide.markdown": "# Guide\nText.",
     "notes.txt": "Plain text.\n\nSecond paragraph.",
     "page.mdx": "# Page\nText.",
     "image.png": "not text",
+    ".draft.md": "# Hidden file",
     ".hidden/draft.md": "# Hidden",
     "node_modules/pkg/readme.md": "# Package",
   });
@@ -68,7 +69,7 @@ test("JSONL: text, page_content or content, grouped by source, in line order", (
     { source: "b.md", chunks: [{ id: "b-1", label: "b-1", number: 1, line: 2, text: "First chunk of B." }] },
     {
       source: "chunks.jsonl",
-      chunks: [{ id: "line 5", label: "line 5", number: 1, line: 5, text: "No id and no source." }],
+      chunks: [{ id: "line 5", label: "#1", number: 1, line: 5, text: "No id and no source." }],
     },
   ]);
 });
@@ -86,7 +87,7 @@ test("bad input gives a plain message with the file and line", (t) => {
     ["broken.jsonl", "broken.jsonl line 2 is not valid JSON."],
     ["array.jsonl", "array.jsonl line 1 is not a JSON object."],
     ["empty", /has no \.md, \.markdown, \.mdx, \.txt files/],
-    ["data.csv", /is not a folder, a Markdown or text file/],
+    ["data.csv", /is not a folder, a Markdown or text file \(\.md, \.markdown, \.mdx, \.txt\) or a JSONL file \(\.jsonl, \.ndjson\)\.$/],
     ["missing", /there is no such file or folder/],
   ];
   for (const [name, message] of cases) {

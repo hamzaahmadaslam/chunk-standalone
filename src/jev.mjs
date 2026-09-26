@@ -16,9 +16,9 @@ export class JevError extends Error {
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
- * Asks Jev the `questions` about `state`. Retries 429 and 529 up to `retries` times with exponential backoff
- * (honouring retry-after), times out each attempt after `timeoutMs`, and throws a JevError with a plain message
- * otherwise. `fetchImpl` is injectable so tests never touch the network.
+ * Asks Jev the `questions` about `state`. Times out each attempt after `timeoutMs`, retries timeouts, network errors,
+ * 429 and 529 up to `retries` times with exponential backoff (honouring retry-after), and throws a JevError with a
+ * plain message otherwise. `fetchImpl` is injectable so tests never touch the network.
  */
 export async function askJev(state, questions, options = {}) {
   const {
@@ -49,8 +49,11 @@ export async function askJev(state, questions, options = {}) {
       throw new JevError(`Could not reach TypeSafe: ${error?.name === "TimeoutError" ? "timed out" : error?.message}`, 0);
     }
     if (res.ok) {
-      const data = await res.json();
-      if (!data || typeof data.answers !== "object") throw new JevError("TypeSafe answered without answers.", res.status);
+      // A body that is not JSON (a proxy's error page, say) or has no answers object gets the same plain error.
+      const data = await res.json().catch(() => null);
+      if (typeof data?.answers !== "object" || data.answers === null) {
+        throw new JevError("TypeSafe answered without answers.", res.status);
+      }
       return data;
     }
     if ((res.status === 429 || res.status === 529) && attempt < retries) {
@@ -73,7 +76,7 @@ export async function askJev(state, questions, options = {}) {
   }
 }
 
-/** Question helpers (the shapes in reference/typesafe/api.md). */
+/** Question helpers: each builds one entry of a request's `questions`. */
 export const noul = (instructions, criteria) => ({ type: "noul", instructions, ...(criteria ? { criteria } : {}) });
 export const choice = (instructions, options) => ({ type: "choice", instructions, criteria: options });
 export const score = (instructions, levels) => ({ type: "score", instructions, criteria: levels });

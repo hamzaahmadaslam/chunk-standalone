@@ -41,6 +41,16 @@ test("heading mode starts a chunk at each heading, keeps the heading, and ignore
   assert.deepEqual(chunkByHeading("#hashtag is not a heading\n####### nor is this"), [
     { line: 1, text: "#hashtag is not a heading\n####### nor is this" },
   ]);
+  // A backtick fence cannot have a backtick after it on its line, so this is inline code and # B is a heading.
+  assert.deepEqual(chunkByHeading("# A\n```inline``` code.\n# B\nText."), [
+    { line: 1, text: "# A\n```inline``` code." },
+    { line: 3, text: "# B\nText." },
+  ]);
+  // A tilde fence may have backticks after it.
+  assert.deepEqual(chunkByHeading("~~~ `info`\n# inside the fence\n~~~\n# B"), [
+    { line: 1, text: "~~~ `info`\n# inside the fence\n~~~" },
+    { line: 4, text: "# B" },
+  ]);
 });
 
 test("paragraph mode splits at blank lines but keeps a fenced code block in one chunk", () => {

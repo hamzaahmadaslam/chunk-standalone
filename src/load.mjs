@@ -13,26 +13,42 @@ export function isJsonlPath(inputPath) {
 }
 
 /**
- * Loads the input and returns documents in a stable order:
- * [{ source, chunks: [{ id, label, number, line, text }] }], where `number` is the chunk's position in its document
- * (from 1) and `line` is the line of the file (or of the JSONL file) where the chunk starts.
+ * How loadInput reads `inputPath`: as a "folder", a "jsonl" file of ready-made chunks, or one Markdown or text "file".
+ * A folder is read as a folder even when its name ends in .jsonl.
  */
-export function loadInput(inputPath, by) {
+export function inputKind(inputPath) {
   let stat;
   try {
     stat = statSync(inputPath);
   } catch {
     throw new UserError(`Cannot read ${inputPath}: there is no such file or folder.`);
   }
-  if (stat.isDirectory()) return loadFolder(inputPath, by);
-  if (isJsonlPath(inputPath)) return loadJsonl(inputPath);
-  if (TEXT_EXTENSIONS.includes(path.extname(inputPath).toLowerCase())) {
-    return [loadFile(inputPath, path.basename(inputPath), by)];
-  }
-  throw new UserError(`${inputPath} is not a folder, a Markdown or text file (${TEXT_EXTENSIONS.join(", ")}) or a .jsonl file.`);
+  if (stat.isDirectory()) return "folder";
+  if (isJsonlPath(inputPath)) return "jsonl";
+  if (TEXT_EXTENSIONS.includes(path.extname(inputPath).toLowerCase())) return "file";
+  throw new UserError(
+    `${inputPath} is not a folder, a Markdown or text file (${TEXT_EXTENSIONS.join(", ")}) ` +
+      `or a JSONL file (${JSONL_EXTENSIONS.join(", ")}).`,
+  );
 }
 
-/** Every Markdown and text file below `root`, skipping node_modules and folders whose names start with a dot. */
+/**
+ * Loads the input and returns documents in a stable order:
+ * [{ source, chunks: [{ id, label, number, line, text }] }], where `number` is the chunk's position in its document
+ * (from 1), `label` is how the report names the chunk (`#number`, or the id given in JSONL) and `line` is the line of
+ * the file (or of the JSONL file) where the chunk starts.
+ */
+export function loadInput(inputPath, by) {
+  const kind = inputKind(inputPath);
+  if (kind === "folder") return loadFolder(inputPath, by);
+  if (kind === "jsonl") return loadJsonl(inputPath);
+  return [loadFile(inputPath, path.basename(inputPath), by)];
+}
+
+/**
+ * Every Markdown and text file below `root`, skipping node_modules, files and folders whose names start with a dot,
+ * and symbolic links.
+ */
 export function listTextFiles(root) {
   const found = [];
   const walk = (dir) => {
@@ -98,10 +114,12 @@ function loadJsonl(file) {
       throw new UserError(`${where} has no "text" string (also accepted: "page_content" or "content").`);
     }
     const source = firstName(row.source, row.metadata?.source, row.metadata?.file_name) ?? name;
-    const id = firstName(row.id, row.chunk_id) ?? `line ${i + 1}`;
+    const id = firstName(row.id, row.chunk_id);
     if (!groups.has(source)) groups.set(source, []);
     const chunks = groups.get(source);
-    chunks.push({ id, label: id, number: chunks.length + 1, line: i + 1, text: normalize(text) });
+    const number = chunks.length + 1;
+    // Without an id the report names the chunk #number, as for files; "line 5 line 5" would repeat itself.
+    chunks.push({ id: id ?? `line ${i + 1}`, label: id ?? `#${number}`, number, line: i + 1, text: normalize(text) });
   });
   if (!groups.size) throw new UserError(`${name} has no chunks.`);
   return [...groups].map(([source, chunks]) => ({ source, chunks }));

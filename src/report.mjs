@@ -39,6 +39,9 @@ export function preview(text, max = 76) {
   return `${space > max / 2 ? cut.slice(0, space) : cut}...`;
 }
 
+/** What the output calls one document: a file, or for JSONL input a source. */
+const documentWord = (meta) => (meta.inputKind === "jsonl" ? "source" : "file");
+
 function scope(meta, files) {
   return meta.inputKind === "jsonl"
     ? `${plural(files, "source")}, read from ${meta.jsonlName}`
@@ -100,7 +103,7 @@ export function formatReport(result, meta) {
   }
   const quiet = result.files.length - listed.length;
   if (!listed.length) lines.push("", "No chunks to fix or review.");
-  else if (quiet) lines.push("", `${plural(quiet, "other file")} had nothing to fix or review.`);
+  else if (quiet) lines.push("", `${plural(quiet, `other ${documentWord(meta)}`)} had nothing to fix or review.`);
   if (summary.fix || summary.review) {
     lines.push(
       "",
@@ -168,7 +171,9 @@ export function formatDryRun(plan, meta) {
     const range = sizes.length ? `, ${count(Math.min(...sizes))} to ${count(Math.max(...sizes))} tokens each` : "";
     lines.push(`  ${doc.source.padEnd(width)}  ${plural(doc.chunks.length, "chunk")}${range}`);
   }
-  if (plan.documents.length > shown.length) lines.push(`  and ${plural(plan.documents.length - shown.length, "more file")}`);
+  if (plan.documents.length > shown.length) {
+    lines.push(`  and ${plural(plan.documents.length - shown.length, `more ${documentWord(meta)}`)}`);
+  }
   for (const { source, chunk, reason } of plan.skipped) {
     lines.push(`Skipped ${source} ${chunk.label} line ${chunk.line}: ${reasonText({ chunk, reasons: [reason] })}`);
   }

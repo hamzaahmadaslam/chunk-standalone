@@ -9,12 +9,13 @@ import {
   DEFAULT_THRESHOLD,
   DEFAULT_TIMEOUT_SECONDS,
   MAX_BATCH,
+  MAX_TIMEOUT_SECONDS,
   planRequests,
   runPlan,
 } from "./check.mjs";
 import { UserError } from "./errors.mjs";
 import { DEFAULT_MODEL, JevError } from "./jev.mjs";
-import { isJsonlPath, loadInput } from "./load.mjs";
+import { inputKind, loadInput } from "./load.mjs";
 import { dryRunJson, formatDryRun, formatReport, toJson } from "./report.mjs";
 
 export const VERSION = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")).version;
@@ -27,7 +28,7 @@ Options:
   --by <mode>          how to split .md and .txt files: heading, paragraph or tokens=N (default heading)
   --threshold <p>      confidence needed to mark a chunk ok or fix, above 0.5 and up to 1 (default ${DEFAULT_THRESHOLD})
   --batch <n>          chunks per request, 1 to ${MAX_BATCH} (default ${DEFAULT_BATCH})
-  --timeout <seconds>  time limit for each request (default ${DEFAULT_TIMEOUT_SECONDS})
+  --timeout <seconds>  time limit for each attempt at a request, up to ${MAX_TIMEOUT_SECONDS} (default ${DEFAULT_TIMEOUT_SECONDS})
   --json               print JSON instead of the report
   --dry-run            print the questions and a token estimate; send nothing
   -h, --help           show this help
@@ -75,8 +76,10 @@ function parseOptions(argv) {
     throw new UserError(`--batch must be a whole number from 1 to ${MAX_BATCH}, not "${values.batch}".`);
   }
   const timeoutSeconds = values.timeout === undefined ? DEFAULT_TIMEOUT_SECONDS : Number(values.timeout);
-  if (!(timeoutSeconds > 0 && timeoutSeconds <= 600)) {
-    throw new UserError(`--timeout must be a number of seconds above 0 and at most 600, not "${values.timeout}".`);
+  if (!(timeoutSeconds > 0 && timeoutSeconds <= MAX_TIMEOUT_SECONDS)) {
+    throw new UserError(
+      `--timeout must be a number of seconds above 0 and at most ${MAX_TIMEOUT_SECONDS}, not "${values.timeout}".`,
+    );
   }
   return {
     input: positionals[0],
@@ -94,6 +97,8 @@ function parseOptions(argv) {
 export async function main(argv, io = {}) {
   const { env = process.env, stdout = process.stdout, stderr = process.stderr, fetchImpl = globalThis.fetch } = io;
   const write = (stream, text) => stream.write(text.endsWith("\n") ? text : `${text}\n`);
+  // True while the progress line on a terminal has no newline yet, so an error must start a line of its own.
+  let progressOpen = false;
   try {
     const options = parseOptions(argv);
     if (options.help || options.version) {
@@ -101,7 +106,7 @@ export async function main(argv, io = {}) {
       return 0;
     }
 
-    const jsonl = isJsonlPath(options.input);
+    const jsonl = inputKind(options.input) === "jsonl";
     const documents = loadInput(options.input, options.by);
     if (jsonl && options.byGiven) write(stderr, "chunk-standalone: --by is ignored for JSONL input; its chunks are checked as they are.");
     const model = env.TYPESAFE_MODEL?.trim() || DEFAULT_MODEL;
@@ -127,7 +132,10 @@ export async function main(argv, io = {}) {
       );
     }
     const progress = stderr.isTTY
-      ? (done, total) => stderr.write(`\rchecked ${done} of ${total} requests${done === total ? "\n" : ""}`)
+      ? (done, total) => {
+          progressOpen = done < total;
+          stderr.write(`\rchecked ${done} of ${total} requests${progressOpen ? "" : "\n"}`);
+        }
       : undefined;
     const result = await runPlan(plan, {
       threshold: options.threshold,
@@ -140,6 +148,7 @@ export async function main(argv, io = {}) {
     write(stdout, options.json ? JSON.stringify(toJson(result, meta), null, 2) : formatReport(result, meta));
     return result.summary.fix > 0 ? 1 : 0;
   } catch (error) {
+    if (progressOpen) stderr.write("\n");
     const known = error instanceof UserError || error instanceof JevError;
     write(stderr, `chunk-standalone: ${known ? error.message : `unexpected error: ${error?.message ?? error}`}`);
     return 2;

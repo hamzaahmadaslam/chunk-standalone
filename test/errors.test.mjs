@@ -82,3 +82,23 @@ test("a request that takes too long stops with a plain timeout message", async (
   );
   assert.equal(calls, 1);
 });
+
+test("a network error is retried, then stops with a plain message", async () => {
+  let calls = 0;
+  const offline = async () => {
+    calls++;
+    throw new TypeError("fetch failed");
+  };
+  await assert.rejects(
+    runPlan(plan, { apiKey: "test-key", fetchImpl: offline, retries: 1 }),
+    jevError(0, "Could not reach TypeSafe: fetch failed"),
+  );
+  assert.equal(calls, 2);
+});
+
+test("an answer that is not JSON or has no answers stops the run with a plain message", async () => {
+  for (const body of ["<html>Bad gateway</html>", "null", '{"answers":null}', '{"model":"jev-1.13.0"}']) {
+    const fetchImpl = async () => new Response(body, { status: 200 });
+    await assert.rejects(runPlan(plan, { apiKey: "test-key", fetchImpl }), jevError(200, "TypeSafe answered without answers."), body);
+  }
+});

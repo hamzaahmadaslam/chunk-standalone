@@ -275,4 +275,15 @@ test("a missing or malformed answer puts the chunk in review instead of failing 
     ],
   );
   assert.deepEqual(result.usage, { requests: 1, input_tokens: 0, output_tokens: 0 });
+
+  // A fix that was not offered is malformed too: merge with previous for the first chunk, or no option's name at all.
+  const wrongFix = tableFetch({ c0: [0.1, 0.95, "merge_with_previous", 0.9], c1: [0.1, 0.95, "rewrite", 0.9] });
+  const unoffered = await runPlan(plan, { apiKey: "test-key", fetchImpl: wrongFix.fetchImpl });
+  assert.deepEqual(
+    unoffered.files[0].chunks.map((entry) => [entry.verdict, entry.fix, entry.reasons]),
+    [
+      ["review", null, ["no_answer"]],
+      ["review", null, ["no_answer"]],
+    ],
+  );
 });

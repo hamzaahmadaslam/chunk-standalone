@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -104,24 +104,59 @@ test("--dry-run prints the questions and a token estimate without a key and with
   assert.equal(calls.length, 0);
 });
 
+/** A response that gives every chunk in the request the same answers. */
+const answerAll = (standalone, outside, fix) => (body) => ({
+  model: "jev-1.13.0",
+  answers: Object.fromEntries(
+    Object.entries(body.questions).map(([key, question]) => [
+      key,
+      question.type === "noul"
+        ? { type: "noul", noul: key.endsWith("_standalone") ? standalone : outside }
+        : { type: "choice", ...fix },
+    ]),
+  ),
+  usage: { input_tokens: 1500, output_tokens: 0 },
+});
+const allOk = answerAll(0.97, 0.03, { choice: "keep", confidence: 0.95, probabilities: { keep: 0.96, split: 0.04 } });
+
 test("exit code 0 and a short report when every chunk is ok", async () => {
-  const allOk = fixtureFetch((body) => ({
-    model: "jev-1.13.0",
-    answers: Object.fromEntries(
-      Object.entries(body.questions).map(([key, question]) => [
-        key,
-        question.type === "noul"
-          ? { type: "noul", noul: key.endsWith("_standalone") ? 0.97 : 0.03 }
-          : { type: "choice", choice: "keep", confidence: 0.95, probabilities: { keep: 0.96, split: 0.04 } },
-      ]),
-    ),
-    usage: { input_tokens: 1500, output_tokens: 0 },
-  }));
-  const { code, stdout } = await run([DOCS, "--threshold", "0.9"], { env: { TYPESAFE_API_KEY: KEY }, fetchImpl: allOk.fetchImpl });
+  const { fetchImpl } = fixtureFetch(allOk);
+  const { code, stdout } = await run([DOCS, "--threshold", "0.9"], { env: { TYPESAFE_API_KEY: KEY }, fetchImpl });
   assert.equal(code, 0);
   assert.match(stdout, /Model jev-1\.13\.0, 2 requests, 3,000 input tokens, threshold 0\.9/);
   assert.match(stdout, /ok 9 {3}fix 0 {3}review 0/);
   assert.match(stdout, /No chunks to fix or review\./);
+});
+
+test("on a terminal, an error starts on a new line and no progress is written after it", async () => {
+  const soon = () => new Promise((resolve) => setTimeout(resolve, 20));
+  const io = (respond) => {
+    const stderr = { isTTY: true, text: "", write: (text) => (stderr.text += text) };
+    return { env: { TYPESAFE_API_KEY: KEY }, stdout: { write() {} }, stderr, fetchImpl: fixtureFetch(respond).fetchImpl };
+  };
+
+  // The first request is answered; the second is refused a moment later, while the progress line is open.
+  const open = io(async (body, call) => {
+    if (call === 1) return allOk(body);
+    await soon();
+    return 401;
+  });
+  assert.equal(await main([DOCS], open), 2);
+  assert.equal(open.stderr.text, "\rchecked 1 of 2 requests\nchunk-standalone: TypeSafe error: the API key was refused\n");
+
+  // The first request is refused; the second is answered after the error is printed, and adds nothing to it.
+  let answered;
+  const late = new Promise((resolve) => (answered = resolve));
+  const stopped = io(async (body, call) => {
+    if (call === 1) return 401;
+    await soon();
+    answered();
+    return allOk(body);
+  });
+  assert.equal(await main([DOCS], stopped), 2);
+  await late;
+  await soon();
+  assert.equal(stopped.stderr.text, "chunk-standalone: TypeSafe error: the API key was refused\n");
 });
 
 test("usage errors and a missing key exit 2 with one plain line and no stack trace", async () => {
@@ -164,4 +199,57 @@ test("--help, --version, and --by ignored with a note for JSONL input", async (t
   assert.equal(code, 0);
   assert.equal(stderr, "chunk-standalone: --by is ignored for JSONL input; its chunks are checked as they are.\n");
   assert.match(stdout, /3 chunks in 2 sources, read from chunks\.jsonl/);
+
+  // A folder is split as a folder, even when its name ends in .jsonl.
+  const folder = path.join(root, "export.jsonl");
+  mkdirSync(folder);
+  writeFileSync(path.join(folder, "page.md"), "# Page\n\nText.");
+  const asFolder = await run([folder, "--by", "paragraph", "--dry-run"]);
+  assert.equal(asFolder.stderr, "");
+  assert.match(asFolder.stdout, /^2 chunks in 1 file, split by paragraph$/m);
+});
+
+test("JSONL input: the report names sources, and a chunk without an id by its position", async (t) => {
+  const root = mkdtempSync(path.join(os.tmpdir(), "chunk-standalone-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const file = path.join(root, "chunks.jsonl");
+  writeFileSync(
+    file,
+    [
+      '{"text":"Run the installer. Invoices are emailed on the first of each month.","source":"install.md"}',
+      '{"id":"faq-1","text":"chunk-standalone checks each chunk of a document.","source":"faq.md"}',
+      '{"text":" ","source":"install.md"}',
+    ].join("\n"),
+  );
+  const split = answerAll(0.9, 0.1, { choice: "split", confidence: 0.9, probabilities: { split: 0.95, keep: 0.05 } });
+  const { fetchImpl } = fixtureFetch((body) => (body.state.chunks[0].startsWith("Run the installer.") ? split : allOk)(body));
+  const report = await run([file], { env: { TYPESAFE_API_KEY: KEY }, fetchImpl });
+  assert.equal(report.code, 1);
+  assert.equal(
+    report.stdout,
+    [
+      "chunk-standalone: 3 chunks in 2 sources, read from chunks.jsonl",
+      "Model jev-1.13.0, 2 requests, 3,000 input tokens, threshold 0.8",
+      "",
+      "ok 1   fix 1   review 0   skipped 1",
+      "",
+      "install.md (2 chunks: fix 1, skipped 1)",
+      "  #1 line 1  fix: split (covers more than one topic)",
+      "      standalone 0.90 | outside reference 0.10 | fix answer: split 0.95, keep 0.05 (confidence 0.90)",
+      '      "Run the installer. Invoices are emailed on the first of each month."',
+      "  #2 line 3  skipped (empty chunk)",
+      "",
+      "1 other source had nothing to fix or review.",
+      "",
+      "fix: confident answers (threshold 0.8) found a problem and agree on the fix.",
+      "review: the answers were not confident enough or disagreed. Read these chunks yourself.",
+      "",
+    ].join("\n"),
+  );
+  assert.match((await run([file, "--dry-run"])).stdout, /^Skipped install\.md #2 line 3: empty chunk$/m);
+
+  // A dry run lists the first 20 sources and counts the rest.
+  const many = path.join(root, "many.jsonl");
+  writeFileSync(many, Array.from({ length: 21 }, (_, i) => JSON.stringify({ text: `Chunk ${i}.`, source: `s${i}.md` })).join("\n"));
+  assert.match((await run([many, "--dry-run"])).stdout, /^ {2}and 1 more source$/m);
 });
