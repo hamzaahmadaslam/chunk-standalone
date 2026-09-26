@@ -30,7 +30,7 @@ export function describeBy(by) {
 
 /** Removes a byte order mark and turns Windows and old Mac line endings into \n. */
 export function normalize(text) {
-  return text.replace(/^﻿/, "").replace(/\r\n?/g, "\n");
+  return text.replace(/^\uFEFF/, "").replace(/\r\n?/g, "\n");
 }
 
 /** Blanks out YAML front matter at the top of a Markdown file. The lines stay, so line numbers still match the file. */
