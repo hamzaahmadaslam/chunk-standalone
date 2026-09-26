@@ -5,10 +5,10 @@ or split for each; for anyone who chunks Markdown or text documents for retrieva
 
 A retriever returns chunks one at a time. A chunk that opens with "As shown above", promises "the following
 settings" that sit in the next chunk, or calls the product "it" reaches the answering model without the text it
-depends on, and the answer built on it comes out vague or wrong. A regular expression can find "above" and "this", but it cannot
-tell whether the chunk explains them itself. A text-generating model can judge that, but it returns prose to parse
-and no measure of how sure it is. chunk-standalone asks narrow yes/no and multiple-choice questions and gets
-probabilities back, so code makes the decision and unclear cases go to a review list.
+depends on, and the answer built on it comes out vague or wrong. A regular expression can find "above" and "this",
+but it cannot tell whether the chunk explains them itself. A text-generating model can judge that, but it returns
+prose to parse and no measure of how sure it is. chunk-standalone asks narrow yes/no and multiple-choice questions
+and gets probabilities back, so code makes the decision and unclear cases go to a review list.
 
 ## How it uses Jev
 
@@ -42,7 +42,8 @@ The verdict is made in code with one threshold, `--threshold` (default 0.8):
 | review  | everything else: an answer between the two limits, a fix Jev is unsure of, or answers that disagree                                                              |
 
 A split stands on its own because a chunk can make sense alone and still mix two topics. The report prints the
-probabilities next to every verdict. Every word in it comes from your files or from fixed text in the code.
+probabilities next to every chunk to fix or review, and `--json` gives them for every checked chunk. Every word in
+the report comes from your files or from fixed text in the code.
 
 ## Install
 
@@ -69,14 +70,14 @@ chunk-standalone chunks.jsonl --json > report.json
 chunk-standalone docs/ --threshold 0.9            # stricter: more chunks go to review
 ```
 
-| Option                             | Default   | What it does                                                                                     |
-| ---------------------------------- | --------- | ------------------------------------------------------------------------------------------------ |
-| `--by heading\|paragraph\|tokens=N` | `heading` | How to split Markdown and text files. Ignored for JSONL input.                                   |
-| `--threshold <p>`                  | `0.8`     | Confidence needed to mark a chunk ok or fix. Above 0.5, at most 1.                               |
-| `--batch <n>`                      | `8`       | Chunks per request, 1 to 50. `--batch 1` sends each chunk with only its own neighbours.          |
-| `--timeout <seconds>`              | `10`      | Time limit for each request. Rate limits (429) and overload (529) are retried three times.      |
-| `--json`                           | off       | Print JSON: every chunk, its verdict and the raw probabilities.                                  |
-| `--dry-run`                        | off       | Print how the files were chunked, one chunk's questions and the token estimate. Needs no key.    |
+| Option                              | Default   | What it does                                                                                                                                   |
+| ----------------------------------- | --------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--by heading\|paragraph\|tokens=N` | `heading` | How to split Markdown and text files. Ignored for JSONL input.                                                                                 |
+| `--threshold <p>`                   | `0.8`     | Confidence needed to mark a chunk ok or fix. Above 0.5, at most 1.                                                                             |
+| `--batch <n>`                       | `8`       | Chunks per request, 1 to 50. `--batch 1` sends each chunk with only its own neighbours.                                                        |
+| `--timeout <seconds>`               | `10`      | Time limit for each attempt at a request, at most 600. Timeouts, network errors, rate limits (429) and overload (529) are retried three times. |
+| `--json`                            | off       | Print JSON: every chunk, its verdict and the raw probabilities.                                                                                |
+| `--dry-run`                         | off       | Print how the files were chunked, one chunk's questions and the token estimate. Needs no key.                                                  |
 
 Environment: `TYPESAFE_API_KEY` (needed unless `--dry-run`) and `TYPESAFE_MODEL` (default `jev-latest`).
 
@@ -85,18 +86,19 @@ Chunks in review do not change the exit code.
 
 ### Input
 
-- A folder: every `.md`, `.markdown`, `.mdx` and `.txt` file below it, except inside `node_modules` and folders
-  whose names start with a dot. YAML front matter at the top of a Markdown file is skipped.
+- A folder: every `.md`, `.markdown`, `.mdx` and `.txt` file below it, except files inside `node_modules`, symbolic
+  links, and files and folders whose names start with a dot. YAML front matter at the top of a Markdown file is
+  skipped.
 - One file with one of those extensions.
-- A `.jsonl` file of chunks you already made, one per line:
+- A `.jsonl` or `.ndjson` file of chunks you already made, one per line:
 
   ```json
   {"id": "install-2", "text": "As shown above, run the installer.", "source": "install.md"}
   ```
 
-  The text may also be in `page_content` or `content`, and the source in `metadata.source` or
-  `metadata.file_name`, which covers LangChain-style exports. Chunks are checked in line order within their
-  source. Without a source, the whole file counts as one document.
+  The text may also be in `page_content` or `content`, the id in `chunk_id`, and the source in `metadata.source` or
+  `metadata.file_name`, which covers LangChain-style exports. The id is optional. Chunks are checked in line order
+  within their source. Without a source, the whole file counts as one document.
 
 Files are split the three common ways, so the report shows the problems your own chunker is likely to make:
 
@@ -174,7 +176,7 @@ disk and makes no other network requests, for telemetry, updates or anything els
   recognised), and token counts estimated at four characters per token. For your exact chunks, use JSONL.
 - English is where Jev is most accurate. The token estimate also assumes English; other scripts use more tokens per
   character, so lower `--batch` if TypeSafe rejects a request as too large.
-- Chunks estimated above 14,000 tokens are listed as skipped, not checked.
+- Empty chunks and chunks estimated above 14,000 tokens are listed as skipped, not checked.
 - Text written to steer a model, such as an instruction hidden in a document, can move Jev's answers.
 - The tool reports and never edits files. Treat fix verdicts as suggestions, read the review list yourself, and
   check a sample of verdicts on your own documents before you rely on a threshold.

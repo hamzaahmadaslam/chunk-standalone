@@ -5,7 +5,8 @@
 Please report security problems privately through GitHub: open the repository's **Security** tab and choose
 **Report a vulnerability**. Do not open a public issue for a security problem.
 
-You will get a reply within seven days. Fixes are released as a new version with a note in the changelog.
+You will get a reply within seven days. Fixes are released as a new version with a note in the
+[changelog](CHANGELOG.md).
 
 ## What this project does with your data
 
